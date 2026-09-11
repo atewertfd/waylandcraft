@@ -223,18 +223,19 @@ pub fn launch_app(app: &DesktopApp) -> Result<u32, WindowsError> {
         CREATE_NEW_CONSOLE, CreateProcessW, PROCESS_INFORMATION, STARTUPINFOW,
     };
     use windows::core::PWSTR;
-    let mut command = app.exec.clone();
-    let mut args = String::new();
-    if let Some(stripped) = command.strip_prefix('"') {
+    let exec = app.exec.clone();
+    let (command, args) = if let Some(stripped) = exec.strip_prefix('"') {
         if let Some((exe, rest)) = stripped.split_once('"') {
-            command = exe.to_string();
-            args = rest.trim().to_string();
+            (exe.to_string(), rest.trim().to_string())
+        } else {
+            (exec, String::new())
         }
-    } else if let Some((exe, rest)) = command.split_once(' ') {
-        command = exe.to_string();
-        args = rest.to_string();
-    }
-    let mut cmdline = if args.is_empty() {
+    } else if let Some((exe, rest)) = exec.split_once(' ') {
+        (exe.to_string(), rest.to_string())
+    } else {
+        (exec, String::new())
+    };
+    let cmdline = if args.is_empty() {
         format!("\"{command}\"")
     } else {
         format!("\"{command}\" {args}")

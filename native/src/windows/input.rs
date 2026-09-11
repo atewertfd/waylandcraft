@@ -138,7 +138,7 @@ pub fn send_mouse_button(
     };
     unsafe {
         if PostMessageW(Some(hwnd), msg, wp, lp).is_err() {
-            let _ = SendNotifyMessageW(Some(hwnd), msg, wp, lp);
+            let _ = SendNotifyMessageW(hwnd, msg, wp, lp);
         }
     }
     Ok(1)

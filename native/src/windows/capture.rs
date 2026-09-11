@@ -76,18 +76,19 @@ impl WindowCapture {
         let latest = Arc::new(Mutex::new(None));
         let latest_cb = latest.clone();
         let device_cb = device.clone();
-        pool.FrameArrived(&windows::Foundation::TypedEventHandler::new(
-            move |sender, _args| {
-                if let Some(pool) = sender.as_ref() {
-                    if let Ok(frame) = copy_frame(pool, &device_cb) {
-                        if let Ok(mut guard) = latest_cb.lock() {
-                            *guard = Some(frame);
-                        }
+        pool.FrameArrived(&windows::Foundation::TypedEventHandler::<
+            Direct3D11CaptureFramePool,
+            windows::core::IInspectable,
+        >::new(move |sender, _args| {
+            if let Some(pool) = sender.as_ref() {
+                if let Ok(frame) = copy_frame(pool, &device_cb) {
+                    if let Ok(mut guard) = latest_cb.lock() {
+                        *guard = Some(frame);
                     }
                 }
-                Ok(())
-            },
-        ))?;
+            }
+            Ok(())
+        }))?;
         session.StartCapture()?;
 
         eprintln!(
@@ -185,7 +186,7 @@ fn copy_frame(
     unsafe { src.GetDesc(&mut desc) };
     desc.Usage = D3D11_USAGE_STAGING;
     desc.BindFlags = 0;
-    desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ.0;
+    desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ.0 as u32;
     desc.MiscFlags = 0;
     desc.MipLevels = 1;
     desc.ArraySize = 1;
