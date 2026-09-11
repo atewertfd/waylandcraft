@@ -6,13 +6,19 @@ Wayland Compositor in Minecraft
 
 Now available on [Modrinth](https://modrinth.com/mod/waylandcraft)!
 
+## Unofficial Windows 11 + Minecraft 26.2 port
+
+This repository also contains an **unofficial** Windows 11 x86-64 port for **Minecraft 26.2 / Fabric / Java 25**.
+It is not an official EVV1E release. On Windows the mod captures real application windows with Windows Graphics Capture instead of running a Wayland compositor.
+
+See [WINDOWS.md](WINDOWS.md) for installation, build steps, architecture, limitations, and attribution.
+
 ## System dependencies
-- OS: Linux
-- Minecraft 26.1.2
-- Fabric mod loader
-- xkbcommon library 1.11.0
-- xkbcommon tools (xkbcli)
-- xwayland-satellite (for Xwayland support)
+- OS: Linux (original Wayland compositor) or Windows 11 x86-64 (unofficial capture backend)
+- Minecraft 26.2 (this port) — upstream releases still target 26.1.2
+- Fabric mod loader 0.19.5+
+- Java 25
+- Linux only: xkbcommon library 1.11.0, xkbcommon tools (xkbcli), xwayland-satellite (for Xwayland support)
 
 Additionally recommended:
 - Prism Launcher
@@ -25,7 +31,7 @@ Additionally recommended:
 
 ## Frequently Asked Questions
 ### How do I use this thing?
-Download the mod from the releases section, install Minecraft Fabric for 26.1.2 and drag the jar file in your mods folder.
+Download the mod from the releases section, install Minecraft Fabric for 26.2 (this port) or 26.1.2 (official upstream) and drag the jar file in your mods folder.
 Look at your keybind settings. By default `V` opens the app launcher, `G` enables keyboard capture allowing you to type in
 the windows, `B` opens the window manager screen.
 
@@ -66,12 +72,21 @@ For some shaders you might need to disable features like Temporal Anti Aliasing 
 
 ## Building and Running
 You need a Rust development environment and a Java 25 SDK.
+
+Linux:
 ```sh
 ./build.sh #all arguments are passed to cargo build
 ```
 
+Windows:
+```bat
+build.bat
+```
+
+`gradlew.bat build` on Windows also compiles the native DLL when Cargo is available.
+
 The final jar file will be in `build/libs`, or run `./gradlew runClient`
-for a development environment
+for a development environment. The native library is packaged inside the JAR.
 
 
 ## Images

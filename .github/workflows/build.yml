@@ -12,26 +12,44 @@ jobs:
           - name: linux-gnu-arm64
             runs-on: ubuntu-22.04-arm
             target: aarch64-unknown-linux-gnu
+          - name: windows-msvc-x86_64
+            runs-on: windows-latest
+            target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.platform.runs-on }}
     steps:
     - uses: actions/checkout@v6
     - name: Install dependencies
+      if: runner.os == 'Linux'
       run: sudo apt install -y libxkbcommon-dev
     - name: Setup rust toolchain
       uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.platform.target }}
     - name: Compile native library
       working-directory: native/
       run: cargo build --target=${{ matrix.platform.target }}
-    - name: Move native library
+    - name: Move native library (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
       run: |
-        mkdir native-libs
+        mkdir -p native-libs
         mv native/target/${{ matrix.platform.target }}/debug/libwaylandcraft.so \
           native-libs/libwaylandcraft-${{ matrix.platform.name }}.so
+    - name: Move native library (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force -Path native-libs | Out-Null
+        Copy-Item native/target/${{ matrix.platform.target }}/debug/waylandcraft.dll `
+          native-libs/waylandcraft-windows-msvc-x86_64.dll
     - name: Upload artifact
       uses: actions/upload-artifact@v7
       with:
-        path: native-libs/libwaylandcraft-${{ matrix.platform.name }}.so
+        path: |
+          native-libs/libwaylandcraft-${{ matrix.platform.name }}.so
+          native-libs/waylandcraft-${{ matrix.platform.name }}.dll
         archive: false
+        if-no-files-found: warn
   build-java:
     runs-on: ubuntu-22.04
     needs: compile-native-libs
@@ -41,7 +59,6 @@ jobs:
       uses: actions/download-artifact@v8
       with:
         path: native-libs
-        pattern: libwaylandcraft-*.so
         merge-multiple: true
     - name: Set up JDK 25
       uses: actions/setup-java@v5
@@ -52,6 +69,12 @@ jobs:
       uses: gradle/actions/setup-gradle@v6
     - name: Build java code
       run: ./gradlew build
+      env:
+        SKIP_NATIVE: "1"
+    - name: Verify packaged natives
+      run: |
+        jar tf build/libs/waylandcraft.jar | tee /tmp/jar-list.txt
+        grep -E 'waylandcraft-windows-msvc-x86_64.dll|libwaylandcraft' /tmp/jar-list.txt
     - name: Upload artifact
       uses: actions/upload-artifact@v7
       with:

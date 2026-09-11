@@ -65,6 +65,33 @@ java {
 import org.gradle.internal.logging.text.StyledTextOutputFactory;
 import static org.gradle.internal.logging.text.StyledTextOutput.Style;
 
+def isWindowsHost = System.getProperty("os.name").toLowerCase().contains("windows")
+def skipNative = System.getenv("SKIP_NATIVE") == "1"
+
+tasks.register("compileNative", Exec) {
+	group = "build"
+	description = "Build the platform native library with Cargo"
+	workingDir file("native")
+	commandLine nativeCargoCommand()
+	args "build"
+	environment "CARGO_TERM_COLOR", "always"
+}
+
+tasks.register("compileNativeRelease", Exec) {
+	group = "build"
+	description = "Build the platform native library in release mode"
+	workingDir file("native")
+	commandLine nativeCargoCommand()
+	args "build", "--release"
+	environment "CARGO_TERM_COLOR", "always"
+}
+
+if(isWindowsHost && !skipNative) {
+	tasks.named("jar").configure {
+		dependsOn("compileNative")
+	}
+}
+
 jar {
 	inputs.property "archivesName", project.base.archivesName
 	version = null
@@ -76,11 +103,27 @@ jar {
 	// Human readable list of compiled native libraries that were found
 	def natives = []
 
-	// Host-specific native library
+	// Host-specific native library (Linux)
 	def nativeFile = file("native/target/debug/libwaylandcraft.so")
 	if(nativeFile.exists()) {
 		from(nativeFile)
-		natives.add("host")
+		natives.add("host-linux")
+	}
+
+	// Host-specific native library (Windows MSVC)
+	def windowsDlls = [
+		file("native/target/release/waylandcraft.dll"),
+		file("native/target/debug/waylandcraft.dll")
+	]
+	def windowsDll = windowsDlls.find { it.exists() }
+	if(windowsDll != null) {
+		from(windowsDll) {
+			rename { "waylandcraft-windows-msvc-x86_64.dll" }
+		}
+		from(windowsDll) {
+			rename { "waylandcraft.dll" }
+		}
+		natives.add("host-windows-msvc-x86_64")
 	}
 
 	// Packaging of libraries in directory `native-libs`
@@ -100,6 +143,15 @@ jar {
 		natives.add("${target}")
 	}
 
+	def packagedWindows = file("native-libs/waylandcraft-windows-msvc-x86_64.dll")
+	if(packagedWindows.exists() && windowsDll == null) {
+		from(packagedWindows)
+		from(packagedWindows) {
+			rename { "waylandcraft.dll" }
+		}
+		natives.add("windows-msvc-x86_64")
+	}
+
 	if(natives.size() < 1) {
 		services
 			.get(StyledTextOutputFactory)
@@ -107,6 +159,28 @@ jar {
 			.withStyle(Style.Failure)
 			.println("WARNING: Native library not built! The built mod will not contain native code");
 	}
+	else {
+		services
+			.get(StyledTextOutputFactory)
+			.create("waylandcraft")
+			.withStyle(Style.Success)
+			.println("Packaging native libraries: " + natives.join(", "));
+	}
+}
+
+static def nativeCargoCommand() {
+	def cargoEnv = System.getenv("CARGO")
+	if(cargoEnv != null && !cargoEnv.isBlank()) {
+		return cargoEnv
+	}
+	def extra = [
+		new File(System.getProperty("user.home"), ".cargo/bin/cargo.exe"),
+		new File(System.getProperty("user.home"), ".cargo/bin/cargo"),
+		new File("C:/Program Files/Rust stable MSVC 1.96/bin/cargo.exe"),
+		new File("C:/Program Files/Rust stable GNU 1.96/bin/cargo.exe")
+	]
+	def found = extra.find { it.exists() }
+	return found != null ? found.absolutePath : "cargo"
 }
 
 loom {

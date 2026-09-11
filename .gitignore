@@ -41,3 +41,10 @@ replay_*.log
 
 # directory used by actions runner
 native-libs
+
+# local MSVC sysroot / helper used only on machines without VS C++
+.xwin/
+.xwin-cache/
+.xwin-manual/
+.xwin-tools/
+xwin.exe
