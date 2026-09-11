@@ -18,9 +18,9 @@ import org.lwjgl.system.Platform;
 
 import dev.evvie.waylandcraft.WaylandCraftCommon;
 import dev.evvie.waylandcraft.bridge.WLCAbstractWindow.SurfaceGeometry;
+import dev.evvie.waylandcraft.bridge.dmabuf.DmabufFormat;
 import dev.evvie.waylandcraft.desktop.RawDesktopEntry;
 import dev.evvie.waylandcraft.egl.EGLHelper;
-import dev.evvie.waylandcraft.egl.EGLHelper.DmabufFormat;
 import dev.evvie.waylandcraft.egl.EGLHelper.EGLError;
 import dev.evvie.waylandcraft.egl.EGLTypes.EGLDisplay;
 import dev.evvie.waylandcraft.render.BufferTexture.DmabufTexture;

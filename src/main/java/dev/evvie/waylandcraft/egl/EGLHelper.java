@@ -7,8 +7,12 @@ import java.util.ArrayList;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.system.MemoryUtil;
 
+import dev.evvie.waylandcraft.bridge.dmabuf.Dmabuf;
+import dev.evvie.waylandcraft.bridge.dmabuf.DmabufFormat;
+import dev.evvie.waylandcraft.bridge.dmabuf.DmabufPlane;
 import dev.evvie.waylandcraft.egl.EGLTypes.EGLDeviceEXT;
 import dev.evvie.waylandcraft.egl.EGLTypes.EGLDisplay;
+import dev.evvie.waylandcraft.egl.EGLTypes.EGLImage;
 
 public class EGLHelper {
 	
@@ -83,10 +87,75 @@ public class EGLHelper {
 		return formats;
 	}
 	
-	public static final long DRM_MODIFIER_INVALID = 0xffffffffffffffl;
+	private static final long[] PLANE_FD_ATTR = {
+			EGL.EGL_DMA_BUF_PLANE0_FD_EXT,
+			EGL.EGL_DMA_BUF_PLANE1_FD_EXT,
+			EGL.EGL_DMA_BUF_PLANE2_FD_EXT,
+			EGL.EGL_DMA_BUF_PLANE3_FD_EXT,
+	};
+	private static final long[] PLANE_OFFSET_ATTR = {
+			EGL.EGL_DMA_BUF_PLANE0_OFFSET_EXT,
+			EGL.EGL_DMA_BUF_PLANE1_OFFSET_EXT,
+			EGL.EGL_DMA_BUF_PLANE2_OFFSET_EXT,
+			EGL.EGL_DMA_BUF_PLANE3_OFFSET_EXT,
+	};
+	private static final long[] PLANE_PITCH_ATTR = {
+			EGL.EGL_DMA_BUF_PLANE0_PITCH_EXT,
+			EGL.EGL_DMA_BUF_PLANE1_PITCH_EXT,
+			EGL.EGL_DMA_BUF_PLANE2_PITCH_EXT,
+			EGL.EGL_DMA_BUF_PLANE3_PITCH_EXT,
+	};
+	private static final long[] PLANE_MOD_LO_ATTR = {
+			EGL.EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT,
+			EGL.EGL_DMA_BUF_PLANE1_MODIFIER_LO_EXT,
+			EGL.EGL_DMA_BUF_PLANE2_MODIFIER_LO_EXT,
+			EGL.EGL_DMA_BUF_PLANE3_MODIFIER_LO_EXT,
+	};
+	private static final long[] PLANE_MOD_HI_ATTR = {
+			EGL.EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT,
+			EGL.EGL_DMA_BUF_PLANE1_MODIFIER_HI_EXT,
+			EGL.EGL_DMA_BUF_PLANE2_MODIFIER_HI_EXT,
+			EGL.EGL_DMA_BUF_PLANE3_MODIFIER_HI_EXT,
+	};
 	
-	public static record DmabufFormat(int code, long modifier) {
+	public static EGLImage importDmabuf(EGLDisplay dpy, Dmabuf dmabuf) {
+		ArrayList<Long> attribs = new ArrayList<Long>();
+		attribs.add(EGL.EGL_WIDTH); attribs.add(Integer.toUnsignedLong(dmabuf.width()));
+		attribs.add(EGL.EGL_HEIGHT); attribs.add(Integer.toUnsignedLong(dmabuf.height()));
+		attribs.add(EGL.EGL_LINUX_DRM_FOURCC_EXT); attribs.add(Integer.toUnsignedLong(dmabuf.format()));
+		
+		long modifier = dmabuf.modifier();
+		boolean hasModifier = modifier != DRM_MODIFIER_INVALID && modifier != DRM_MODIFIER_LINEAR;
+		
+		long modLo = modifier & U32_MAX;
+		long modHi = modifier >>> 32;
+		
+		DmabufPlane[] planes = dmabuf.planes();
+		for(int i = 0; i < planes.length; i++) {
+			DmabufPlane plane = planes[i];
+			attribs.add(PLANE_FD_ATTR[i]); attribs.add(Integer.toUnsignedLong(plane.fd()));
+			attribs.add(PLANE_OFFSET_ATTR[i]); attribs.add(Integer.toUnsignedLong(plane.offset()));
+			attribs.add(PLANE_PITCH_ATTR[i]); attribs.add(Integer.toUnsignedLong(plane.stride()));
+			
+			if(hasModifier) {
+				attribs.add(PLANE_MOD_LO_ATTR[i]); attribs.add(modLo);
+				attribs.add(PLANE_MOD_HI_ATTR[i]); attribs.add(modHi);
+			}
+		}
+		attribs.add(EGL.EGL_NONE);
+		
+		PointerBuffer attribBuf = MemoryUtil.memAllocPointer(attribs.size());
+		for(long attr : attribs) {
+			attribBuf.put(attr);
+		}
+		
+		return EGL.eglCreateImage(dpy, EGL.EGL_NO_CONTEXT, (int) EGL.EGL_LINUX_DMA_BUF_EXT, null, attribBuf);
 	}
+	
+	private static final long U32_MAX = 0xffffffffl;
+	
+	public static final long DRM_MODIFIER_INVALID = 0xffffffffffffffl;
+	public static final long DRM_MODIFIER_LINEAR = 0;
 	
 	public static class EGLError extends Exception {
 		
