@@ -19,6 +19,10 @@ import org.lwjgl.system.Platform;
 import dev.evvie.waylandcraft.WaylandCraftCommon;
 import dev.evvie.waylandcraft.bridge.WLCAbstractWindow.SurfaceGeometry;
 import dev.evvie.waylandcraft.desktop.RawDesktopEntry;
+import dev.evvie.waylandcraft.egl.EGLHelper;
+import dev.evvie.waylandcraft.egl.EGLHelper.DmabufFormat;
+import dev.evvie.waylandcraft.egl.EGLHelper.EGLError;
+import dev.evvie.waylandcraft.egl.EGLTypes.EGLDisplay;
 import dev.evvie.waylandcraft.render.BufferTexture.DmabufTexture;
 import dev.evvie.waylandcraft.render.WindowFramebuffer;
 import dev.evvie.waylandcraft.utils.CursorShape;
@@ -110,6 +114,16 @@ public class WaylandCraftBridge {
 		long eglDisplay = GLFWNativeEGL.glfwGetEGLDisplay();
 		if(eglDisplay == 0) {
 			throw new RuntimeException("Failed to get EGL display!");
+		}
+		
+		EGLDisplay dpy = EGLDisplay.of(eglDisplay);
+		
+		ArrayList<DmabufFormat> formats;
+		try {
+			System.out.println(EGLHelper.getRenderNodePath(dpy));
+			formats = EGLHelper.queryDmabufFormats(dpy);
+		} catch (EGLError e) {
+			throw new RuntimeException(e);
 		}
 		
 		long handle = init(GLFW.Functions.GetProcAddress, eglDisplay);
