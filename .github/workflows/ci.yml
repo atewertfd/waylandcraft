@@ -51,10 +51,11 @@ jobs:
       - name: Inspect JAR
         run: |
           set -euo pipefail
-          JAR=$(ls build/libs/waylandcraft*.jar | head -n 1)
+          JAR=build/libs/waylandcraft.jar
           echo "JAR=$JAR"
+          ls -la build/libs
           jar tf "$JAR" | tee /tmp/jar-list.txt
-          grep -E 'libwaylandcraft\.so|libwaylandcraft-linux-gnu-' /tmp/jar-list.txt
+          grep -E '(^|/)libwaylandcraft\.so$|(^|/)libwaylandcraft-linux-gnu-' /tmp/jar-list.txt
           python3 - <<'PY'
           import json, zipfile, glob
           jar = glob.glob("build/libs/waylandcraft*.jar")[0]
@@ -113,8 +114,9 @@ jobs:
       - name: Inspect JAR
         shell: pwsh
         run: |
-          $jar = Get-ChildItem build/libs/waylandcraft*.jar | Select-Object -First 1
+          $jar = Get-Item build/libs/waylandcraft.jar
           Write-Host "JAR=$($jar.FullName)"
+          Get-ChildItem build/libs | ForEach-Object { $_.Name }
           jar tf $jar.FullName | Tee-Object -FilePath jar-list.txt
           if (-not (Select-String -Path jar-list.txt -Pattern "waylandcraft-windows-msvc-x86_64.dll" -Quiet)) {
             throw "Windows DLL missing from JAR"

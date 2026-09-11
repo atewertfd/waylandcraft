@@ -32,6 +32,12 @@ pub struct SharedDevice {
     pub winrt: IDirect3DDevice,
 }
 
+// WGC free-threaded frame callbacks run on a Windows thread-pool thread.
+// The D3D11 device is documented as thread-safe; the immediate context is
+// only used from those callbacks after initialization.
+unsafe impl Send for SharedDevice {}
+unsafe impl Sync for SharedDevice {}
+
 #[derive(Clone)]
 pub struct CpuFrame {
     pub width: u32,
