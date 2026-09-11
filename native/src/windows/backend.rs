@@ -437,22 +437,20 @@ impl WindowsBackend {
         enumerate::enumerate_toplevels()
             .unwrap_or_default()
             .into_iter()
-            .map(|info| {
-                DesktopApp {
-                    app_id: format!("hwnd:{}", info.hwnd),
-                    name: format!("{} (open)", info.title),
-                    generic_name: Some("Running Windows application".into()),
-                    exec: info.exe.to_string_lossy().into_owned(),
-                    exec_terminal: false,
-                    comment: Some(format!(
-                        "Capture the already-open window HWND {:#x}",
-                        info.hwnd
-                    )),
-                    keywords: vec![info.title, info.class_name],
-                    categories: vec!["Running".into()],
-                    visible: true,
-                    icon_path: None,
-                }
+            .map(|info| DesktopApp {
+                app_id: format!("hwnd:{}", info.hwnd),
+                name: format!("{} (open)", info.title),
+                generic_name: Some("Running Windows application".into()),
+                exec: info.exe.to_string_lossy().into_owned(),
+                exec_terminal: false,
+                comment: Some(format!(
+                    "Capture the already-open window HWND {:#x}",
+                    info.hwnd
+                )),
+                keywords: vec![info.title, info.class_name],
+                categories: vec!["Running".into()],
+                visible: true,
+                icon_path: None,
             })
             .collect()
     }
