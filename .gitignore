@@ -49,3 +49,5 @@ native-libs
 .xwin-tools/
 xwin.exe
 win-ci.log
+linux-ci.log
+ci-artifacts/
