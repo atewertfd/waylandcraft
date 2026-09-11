@@ -121,34 +121,16 @@ jar {
 		rename { "${it}_${inputs.properties.archivesName}"}
 	}
 
-	// Human readable list of compiled native libraries that were found
+	// Host natives are already copied by processResources into the JAR.
+	// Only extra cross-compiled libraries from native-libs/ are added here.
 	def natives = []
-
-	// Host-specific native library (Linux)
-	def nativeFile = file("native/target/debug/libwaylandcraft.so")
-	if(nativeFile.exists()) {
-		from(nativeFile)
+	if(nativeLinuxSo.exists()) {
 		natives.add("host-linux")
 	}
-
-	// Host-specific native library (Windows MSVC)
-	def windowsDlls = [
-		file("native/target/release/waylandcraft.dll"),
-		file("native/target/debug/waylandcraft.dll")
-	]
-	def windowsDll = windowsDlls.find { it.exists() }
-	if(windowsDll != null) {
-		from(windowsDll) {
-			rename { "waylandcraft-windows-msvc-x86_64.dll" }
-		}
-		from(windowsDll) {
-			rename { "waylandcraft.dll" }
-		}
+	if(nativeWindowsDll != null) {
 		natives.add("host-windows-msvc-x86_64")
 	}
 
-	// Packaging of libraries in directory `native-libs`
-	// Used by the actions runner for releases
 	def targets = [
 		"linux-gnu-x86_64",
 		"linux-gnu-arm64"
@@ -165,7 +147,7 @@ jar {
 	}
 
 	def packagedWindows = file("native-libs/waylandcraft-windows-msvc-x86_64.dll")
-	if(packagedWindows.exists() && windowsDll == null) {
+	if(packagedWindows.exists() && nativeWindowsDll == null) {
 		from(packagedWindows)
 		from(packagedWindows) {
 			rename { "waylandcraft.dll" }
