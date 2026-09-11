@@ -51,6 +51,7 @@ xwin.exe
 win-ci.log
 linux-ci.log
 ci-artifacts/
+ci-artifacts-alpha2/
 *.jar
 tools/windows-jni-smoke/**/*.class
 tools/windows-jni-smoke/*.bmp
