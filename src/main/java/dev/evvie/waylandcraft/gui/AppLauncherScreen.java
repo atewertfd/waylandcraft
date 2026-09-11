@@ -8,6 +8,7 @@ import java.util.List;
 import dev.evvie.waylandcraft.WaylandCraft;
 import dev.evvie.waylandcraft.WaylandCraftCommon;
 import dev.evvie.waylandcraft.desktop.DesktopEntry;
+import dev.evvie.waylandcraft.platform.PlatformSupport;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -31,6 +32,9 @@ public class AppLauncherScreen extends Screen {
 		super(Component.literal("App Launcher"));
 		
 		this.wlc = wlc;
+		if(PlatformSupport.isWindows() && wlc.xdgManager != null) {
+			wlc.xdgManager.refreshIfStale();
+		}
 	}
 	
 	@Override
@@ -176,6 +180,9 @@ public class AppLauncherScreen extends Screen {
 		categories.add(new Category("Settings", Component.literal("Settings"), Identifier.fromNamespaceAndPath(WaylandCraftCommon.MOD_ID, "categories/settings"), new ArrayList<DesktopEntry>()));
 		categories.add(new Category("System", Component.literal("System"), Identifier.fromNamespaceAndPath(WaylandCraftCommon.MOD_ID, "categories/system"), new ArrayList<DesktopEntry>()));
 		categories.add(new Category("Utility", Component.literal("Utility"), Identifier.fromNamespaceAndPath(WaylandCraftCommon.MOD_ID, "categories/utility"), new ArrayList<DesktopEntry>()));
+		if(PlatformSupport.isWindows()) {
+			categories.add(0, new Category("Running", Component.literal("Open windows"), Identifier.fromNamespaceAndPath(WaylandCraftCommon.MOD_ID, "categories/utility"), new ArrayList<DesktopEntry>()));
+		}
 	}
 	
 	private static record RankedDesktopEntry(DesktopEntry entry, int score) {}

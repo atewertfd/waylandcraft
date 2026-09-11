@@ -1,9 +1,6 @@
 package dev.evvie.waylandcraft.bridge;
 
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -14,11 +11,12 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWNativeEGL;
-import org.lwjgl.system.Platform;
 
 import dev.evvie.waylandcraft.WaylandCraftCommon;
 import dev.evvie.waylandcraft.bridge.WLCAbstractWindow.SurfaceGeometry;
 import dev.evvie.waylandcraft.desktop.RawDesktopEntry;
+import dev.evvie.waylandcraft.platform.NativeLibraries;
+import dev.evvie.waylandcraft.platform.PlatformSupport;
 import dev.evvie.waylandcraft.render.BufferTexture.DmabufTexture;
 import dev.evvie.waylandcraft.render.WindowFramebuffer;
 import dev.evvie.waylandcraft.utils.CursorShape;
@@ -44,62 +42,7 @@ public class WaylandCraftBridge {
 	private @Nullable ResizeRequest lastResizeRequest = null;
 	
 	static {
-		boolean loaded = false;
-		InputStream inputStream = openNativeLibraryFromJar();
-		if(inputStream != null) {
-			try {
-				byte[] data = inputStream.readAllBytes();
-				inputStream.close();
-				
-				File temp = File.createTempFile("waylandcraft-", "-libwaylandcraft.so");
-				temp.deleteOnExit();
-				
-				FileOutputStream outputStream = new FileOutputStream(temp);
-				outputStream.write(data);
-				outputStream.close();
-				
-				System.load(temp.getAbsolutePath());
-				loaded = true;
-				
-				WaylandCraftCommon.LOGGER.info("Loaded native library from jar");
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-		
-		if(!loaded) {
-			WaylandCraftCommon.LOGGER.info("Native library could not be loaded from jar. Attempting to load from system");
-			System.loadLibrary("waylandcraft");
-		}
-	}
-	
-	private static InputStream loadResource(String path) {
-		WaylandCraftCommon.LOGGER.info("Looking for '" + path + "'...");
-		return WaylandCraftBridge.class.getResourceAsStream(path);
-	}
-	
-	private static InputStream openNativeLibraryFromJar() {
-		InputStream stream = null;
-		
-		/* Attempt to load manually built native library */
-		stream = loadResource("/libwaylandcraft.so");
-		if(stream != null) return stream;
-		
-		/* Attempt to load from release library path */
-		String arch;
-		switch(Platform.getArchitecture()) {
-		case X64: arch = "x86_64"; break;
-		case ARM64: arch = "arm64"; break;
-		default: arch = null; break;
-		}
-		
-		if(arch != null) {
-			String platform = "linux-gnu-" + arch;
-			stream = loadResource("/libwaylandcraft-" + platform + ".so");
-			if(stream != null) return stream;
-		}
-		
-		return null;
+		NativeLibraries.load();
 	}
 	
 	private WaylandCraftBridge(long instance) {
@@ -107,11 +50,15 @@ public class WaylandCraftBridge {
 	}
 	
 	public static WaylandCraftBridge start() {
-		long eglDisplay = GLFWNativeEGL.glfwGetEGLDisplay();
-		if(eglDisplay == 0) {
-			throw new RuntimeException("Failed to get EGL display!");
+		long eglDisplay = 0;
+		if(PlatformSupport.isLinux()) {
+			eglDisplay = GLFWNativeEGL.glfwGetEGLDisplay();
+			if(eglDisplay == 0) {
+				throw new RuntimeException("Failed to get EGL display!");
+			}
 		}
 		
+		WaylandCraftCommon.LOGGER.info("Initializing native backend {} version {}", PlatformSupport.backendName(), PlatformSupport.nativeLibraryVersion());
 		long handle = init(GLFW.Functions.GetProcAddress, eglDisplay);
 		WaylandCraftBridge bridge = new WaylandCraftBridge(handle);
 		

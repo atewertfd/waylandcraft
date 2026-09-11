@@ -7,6 +7,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import dev.evvie.waylandcraft.WaylandCraft;
+import dev.evvie.waylandcraft.platform.GameScreens;
 import net.minecraft.client.KeyboardHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.KeyEvent;
@@ -19,7 +20,7 @@ public class KeyboardHandlerMixin {
 		int scancode = WaylandCraft.correctScancode(event.scancode());
 		
 		if(Minecraft.getInstance().level == null) return;
-		if(Minecraft.getInstance().screen != null) return;
+		if(GameScreens.current(Minecraft.getInstance()) != null) return;
 		
 		if(WaylandCraft.instance.onKeyPress(windowHandle, event.key(), scancode, action, event.modifiers())) info.cancel();
 	}

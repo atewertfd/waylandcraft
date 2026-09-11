@@ -21,6 +21,7 @@ import dev.evvie.waylandcraft.bridge.WaylandCraftBridge.Size;
 import dev.evvie.waylandcraft.desktop.DesktopEntry;
 import dev.evvie.waylandcraft.grabs.WindowGrab;
 import dev.evvie.waylandcraft.mixin.IMouseHandlerMixin;
+import dev.evvie.waylandcraft.platform.GameScreens;
 import dev.evvie.waylandcraft.render.RenderUtils;
 import dev.evvie.waylandcraft.render.WindowFramebuffer;
 import net.minecraft.client.Minecraft;
@@ -229,7 +230,7 @@ public class WindowManagerScreen extends Screen {
 				makes fullscreen windows properly take up the whole screen, \
 				disabling all of the other UI elements.
 				""";
-		minecraft.setScreen(new PopupScreen.Builder(this, Component.literal("Window Manager Help"))
+		GameScreens.set(minecraft, new PopupScreen.Builder(this, Component.literal("Window Manager Help"))
 				.addMessage(Component.literal(message))
 				.addButton(Component.literal("Done"), (popup) -> popup.onClose())
 				.build());

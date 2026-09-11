@@ -7,7 +7,6 @@ import java.util.stream.Stream;
 
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
-import org.lwjgl.system.Platform;
 
 import com.mojang.blaze3d.platform.InputConstants;
 
@@ -33,6 +32,8 @@ import dev.evvie.waylandcraft.gui.WindowManagerScreen;
 import dev.evvie.waylandcraft.item.WindowHandle;
 import dev.evvie.waylandcraft.item.WindowItem;
 import dev.evvie.waylandcraft.item.WindowItemManager;
+import dev.evvie.waylandcraft.platform.GameScreens;
+import dev.evvie.waylandcraft.platform.PlatformSupport;
 import dev.evvie.waylandcraft.render.WindowInHandRenderer;
 import dev.evvie.waylandcraft.render.WindowInItemFrameRenderer;
 import dev.evvie.waylandcraft.render.model.WindowItemModel;
@@ -123,8 +124,8 @@ public class WaylandCraft implements ClientModInitializer {
 		
 		settingsManager = new WaylandCraftSettingsManager(this);
 		
-		if(Platform.get() != Platform.LINUX) {
-			WaylandCraftCommon.LOGGER.error("Invalid platform detected! Most mod features will be disabled");
+		if(!PlatformSupport.isSupportedOs()) {
+			WaylandCraftCommon.LOGGER.error("Unsupported operating system {}. WaylandCraft supports Linux (Wayland compositor) and Windows 11 (native window capture).", org.lwjgl.system.Platform.get());
 			WaylandCraft.fallbackMode = true;
 			return;
 		}
@@ -149,15 +150,32 @@ public class WaylandCraft implements ClientModInitializer {
 		if(fallbackMode) return;
 		
 		if(bridge == null) {
-			bridge = WaylandCraftBridge.start();
+			if(PlatformSupport.isVulkanRenderer()) {
+				WaylandCraftCommon.LOGGER.error("Minecraft is using the experimental Vulkan backend. This unofficial port currently requires the default OpenGL renderer. Switch the renderer back to OpenGL in Minecraft video settings.");
+				fallbackMode = true;
+				return;
+			}
+			
+			try {
+				bridge = WaylandCraftBridge.start();
+			} catch(Throwable t) {
+				WaylandCraftCommon.LOGGER.error("Failed to start the native backend. Features that need window capture are disabled.", t);
+				fallbackMode = true;
+				return;
+			}
 			waylandSocket = bridge.getSocket();
 			x11Display = bridge.getX11Display();
 			xdgManager = new XDGDesktopManager(this);
 			registerSettingsResponders();
 			settingsManager.loadKeymap();
 			
-			WaylandCraftCommon.LOGGER.info("Wayland server started on " + waylandSocket);
-			WaylandCraftCommon.LOGGER.info("Xwayland started on " + x11Display);
+			if(PlatformSupport.isWindows()) {
+				WaylandCraftCommon.LOGGER.info("Windows Graphics Capture backend ready ({})", waylandSocket);
+			}
+			else {
+				WaylandCraftCommon.LOGGER.info("Wayland server started on " + waylandSocket);
+				WaylandCraftCommon.LOGGER.info("Xwayland started on " + x11Display);
+			}
 		}
 		bridge.update();
 	}
@@ -201,7 +219,7 @@ public class WaylandCraft implements ClientModInitializer {
 		
 		itemManager.giveItemsIfMissing(bridge.getNewToplevels());
 		
-		boolean inWMScreen = Minecraft.getInstance().screen instanceof WindowManagerScreen;
+		boolean inWMScreen = GameScreens.current(Minecraft.getInstance()) instanceof WindowManagerScreen;
 		
 		// Make sure the toplevels are focused in their respective order and being refocused when a toplevel disappears
 		if(!inWMScreen) {
@@ -265,13 +283,15 @@ public class WaylandCraft implements ClientModInitializer {
 	}
 		
 	private void checkKeybinds(Minecraft minecraft) {
+		if(fallbackMode || bridge == null) return;
+		
 		if(keyOpenScreen.consumeClick()) {
 			keyboardCaptureMode = KeyboardCaptureMode.NONE;
 			pointerGrabs.releaseAll();
-			minecraft.setScreen(new WindowManagerScreen(WaylandCraft.instance));
+			GameScreens.set(minecraft, new WindowManagerScreen(WaylandCraft.instance));
 		}
 		else if(keyOpenAppLauncher.consumeClick()) {
-			minecraft.setScreen(new AppLauncherScreen(WaylandCraft.instance));
+			GameScreens.set(minecraft, new AppLauncherScreen(WaylandCraft.instance));
 		}
 		else if(keyCaptureKeyboard.consumeClick()) {
 			enableKeyboardCapture(false);
@@ -279,8 +299,13 @@ public class WaylandCraft implements ClientModInitializer {
 	}
 	
 	private void onClientJoin(ClientPacketListener listener, PacketSender sender, Minecraft minecraft) {
-		minecraft.getChatListener().handleSystemMessage(Component.literal("Wayland compositor running on " + waylandSocket), false);
-		if(x11Display != null) minecraft.getChatListener().handleSystemMessage(Component.literal("xwayland-satellite running on " + x11Display), false);
+		if(PlatformSupport.isWindows()) {
+			GameScreens.systemMessage(minecraft, Component.literal("WaylandCraft Windows capture backend is running. This is an unofficial port."));
+		}
+		else {
+			GameScreens.systemMessage(minecraft, Component.literal("Wayland compositor running on " + waylandSocket));
+			if(x11Display != null) GameScreens.systemMessage(minecraft, Component.literal("xwayland-satellite running on " + x11Display));
+		}
 		itemManager.giveItemsIfMissing(bridge.getMappedToplevels());
 	}
 	
@@ -461,10 +486,10 @@ public class WaylandCraft implements ClientModInitializer {
 		this.hoveredDisplay = null;
 		this.overridePickBlock = false;
 		
-		if(Minecraft.getInstance().screen instanceof WindowManagerScreen) {
+		if(GameScreens.current(Minecraft.getInstance()) instanceof WindowManagerScreen) {
 			return;
 		}
-		else if(Minecraft.getInstance().screen != null) {
+		else if(GameScreens.current(Minecraft.getInstance()) != null) {
 			pointerGrabs.releaseAll();
 			bridge.sendMotionOutside();
 			return;

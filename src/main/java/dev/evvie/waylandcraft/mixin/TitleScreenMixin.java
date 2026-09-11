@@ -10,6 +10,7 @@ import com.llamalad7.mixinextras.sugar.Local;
 import dev.evvie.waylandcraft.WaylandCraft;
 import dev.evvie.waylandcraft.WaylandCraftCommon;
 import dev.evvie.waylandcraft.gui.WaylandCraftSettingsScreen;
+import dev.evvie.waylandcraft.platform.GameScreens;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.SpriteIconButton;
 import net.minecraft.client.gui.screens.Screen;
@@ -27,7 +28,7 @@ public class TitleScreenMixin extends Screen {
 	@Inject(method = "init", at = @At("TAIL"))
 	public void addWaylandCraftButton(CallbackInfo info, @Local(ordinal = 3) int topPos) {
 		SpriteIconButton button = SpriteIconButton
-				.builder(Component.literal("waylandcraft"), (_) -> {Minecraft.getInstance().setScreen(new WaylandCraftSettingsScreen(WaylandCraft.instance));}, true)
+				.builder(Component.literal("waylandcraft"), (_) -> {GameScreens.set(Minecraft.getInstance(), new WaylandCraftSettingsScreen(WaylandCraft.instance));}, true)
 				.sprite(Identifier.fromNamespaceAndPath(WaylandCraftCommon.MOD_ID, "logo"), 16, 16)
 				.width(20)
 				.build();

@@ -10,6 +10,7 @@ import com.llamalad7.mixinextras.sugar.Local;
 import dev.evvie.waylandcraft.WaylandCraft;
 import dev.evvie.waylandcraft.WaylandCraftCommon;
 import dev.evvie.waylandcraft.gui.WaylandCraftSettingsScreen;
+import dev.evvie.waylandcraft.platform.GameScreens;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.SpriteIconButton;
 import net.minecraft.client.gui.layouts.GridLayout;
@@ -30,7 +31,7 @@ public class PauseScreenMixin extends Screen {
 	@Inject(method = "createPauseMenu", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/layouts/GridLayout;arrangeElements()V"))
 	public void addButton(CallbackInfo info, @Local GridLayout layout) {
 		button = SpriteIconButton
-				.builder(Component.literal("waylandcraft"), (_) -> {Minecraft.getInstance().setScreen(new WaylandCraftSettingsScreen(WaylandCraft.instance));}, true)
+				.builder(Component.literal("waylandcraft"), (_) -> {GameScreens.set(Minecraft.getInstance(), new WaylandCraftSettingsScreen(WaylandCraft.instance));}, true)
 				.sprite(Identifier.fromNamespaceAndPath(WaylandCraftCommon.MOD_ID, "logo"), 16, 16)
 				.width(20)
 				.build();

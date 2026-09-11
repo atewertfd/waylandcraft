@@ -15,6 +15,7 @@ public class XDGDesktopManager {
 	private final WaylandCraft wlc;
 	private ArrayList<DesktopEntry> systemEntries = null;
 	private Thread systemEntryFetchThread;
+	private Instant lastLoad = Instant.EPOCH;
 	
 	public XDGDesktopManager(WaylandCraft wlc) {
 		this.wlc = wlc;
@@ -34,6 +35,7 @@ public class XDGDesktopManager {
 			systemEntries.add(new DesktopEntry(raw.appId, raw.name, raw.genericName, raw.exec, raw.execTerminal, raw.comment, raw.keywords, raw.categories, raw.visible, raw.iconPath));
 		}
 		this.systemEntries = systemEntries;
+		this.lastLoad = Instant.now();
 		
 		WaylandCraftCommon.LOGGER.info("Completed desktop entry loading in " + Duration.between(start, Instant.now()).toMillis() / 1000.0f + "s");
 		
@@ -72,6 +74,16 @@ public class XDGDesktopManager {
 		return entries;
 	}
 	
+	public void refreshIfStale() {
+		if(systemEntries == null) return;
+		if(!completeFetch()) return;
+		if(Duration.between(lastLoad, Instant.now()).toSeconds() < 2) return;
+		if(systemEntryFetchThread != null && systemEntryFetchThread.isAlive()) return;
+		systemEntryFetchThread = new Thread(this::loadSystemEntries);
+		systemEntryFetchThread.setDaemon(true);
+		systemEntryFetchThread.start();
+	}
+
 	public @Nullable DesktopEntry forAppId(String appId) {
 		if(appId == null) return null;
 		if(!completeFetch()) {
