@@ -9,4 +9,3 @@ mod icons;
 mod input;
 
 pub(crate) use backend::WindowsBackend;
-pub(crate) use error::WindowsError;

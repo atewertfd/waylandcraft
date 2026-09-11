@@ -150,7 +150,7 @@ fn resolve_shortcut(
         let mut target = [0u16; MAX_PATH as usize];
         let mut args = [0u16; MAX_PATH as usize];
         let mut desc = [0u16; MAX_PATH as usize];
-        let _ = link.GetPath(&mut target, None, 0);
+        let _ = link.GetPath(&mut target, std::ptr::null_mut(), 0);
         let _ = link.GetArguments(&mut args);
         let _ = link.GetDescription(&mut desc);
         Ok((
@@ -218,10 +218,11 @@ pub fn map_start_menu_category(folder: &str) -> String {
 }
 
 pub fn launch_app(app: &DesktopApp) -> Result<u32, WindowsError> {
-    use windows::Win32::UI::Shell::{
-        SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW, ShellExecuteExW,
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Threading::{
+        CREATE_NEW_CONSOLE, CreateProcessW, PROCESS_INFORMATION, STARTUPINFOW,
     };
-    use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+    use windows::core::PWSTR;
     let mut command = app.exec.clone();
     let mut args = String::new();
     if let Some(stripped) = command.strip_prefix('"') {
@@ -233,30 +234,36 @@ pub fn launch_app(app: &DesktopApp) -> Result<u32, WindowsError> {
         command = exe.to_string();
         args = rest.to_string();
     }
+    let mut cmdline = if args.is_empty() {
+        format!("\"{command}\"")
+    } else {
+        format!("\"{command}\" {args}")
+    };
+    let mut cmdline_wide: Vec<u16> =
+        cmdline.encode_utf16().chain(std::iter::once(0)).collect();
     let exe_wide: Vec<u16> =
         command.encode_utf16().chain(std::iter::once(0)).collect();
-    let args_wide: Vec<u16> =
-        args.encode_utf16().chain(std::iter::once(0)).collect();
-    let mut info = SHELLEXECUTEINFOW {
-        cbSize: std::mem::size_of::<SHELLEXECUTEINFOW>() as u32,
-        fMask: SEE_MASK_NOCLOSEPROCESS,
-        lpFile: PCWSTR(exe_wide.as_ptr()),
-        lpParameters: if args.is_empty() {
-            PCWSTR::null()
-        } else {
-            PCWSTR(args_wide.as_ptr())
-        },
-        nShow: SW_SHOWNORMAL.0,
+    let mut startup = STARTUPINFOW {
+        cb: std::mem::size_of::<STARTUPINFOW>() as u32,
         ..Default::default()
     };
+    let mut info = PROCESS_INFORMATION::default();
     unsafe {
-        ShellExecuteExW(&mut info)?;
-        if info.hProcess.is_invalid() {
-            return Ok(0);
-        }
-        let pid =
-            windows::Win32::System::Threading::GetProcessId(info.hProcess);
-        let _ = windows::Win32::Foundation::CloseHandle(info.hProcess);
+        CreateProcessW(
+            PCWSTR(exe_wide.as_ptr()),
+            Some(PWSTR(cmdline_wide.as_mut_ptr())),
+            None,
+            None,
+            false,
+            CREATE_NEW_CONSOLE,
+            None,
+            None,
+            &startup,
+            &mut info,
+        )?;
+        let pid = info.dwProcessId;
+        let _ = CloseHandle(info.hProcess);
+        let _ = CloseHandle(info.hThread);
         Ok(pid)
     }
 }

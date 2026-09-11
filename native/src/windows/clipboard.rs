@@ -1,6 +1,5 @@
 use crate::windows::error::WindowsError;
-use windows::Win32::Foundation::HWND;
-use windows::Win32::System::DataExchange::CF_UNICODETEXT;
+use windows::Win32::Foundation::{HANDLE, HGLOBAL};
 use windows::Win32::System::DataExchange::{
     CloseClipboard, EmptyClipboard, GetClipboardData, OpenClipboard,
     SetClipboardData,
@@ -9,30 +8,33 @@ use windows::Win32::System::Memory::{
     GMEM_MOVEABLE, GlobalAlloc, GlobalLock, GlobalUnlock,
 };
 
+const CF_UNICODETEXT: u32 = 13;
+
 pub fn get_text() -> Result<Option<String>, WindowsError> {
     unsafe {
         if OpenClipboard(None).is_err() {
             return Ok(None);
         }
-        let handle = GetClipboardData(CF_UNICODETEXT.0);
-        let text = if handle.0.is_null() {
+        let Ok(handle) = GetClipboardData(CF_UNICODETEXT) else {
+            let _ = CloseClipboard();
+            return Ok(None);
+        };
+        if handle.is_invalid() {
+            let _ = CloseClipboard();
+            return Ok(None);
+        }
+        let ptr = GlobalLock(HGLOBAL(handle.0)) as *const u16;
+        let text = if ptr.is_null() {
             None
         } else {
-            let ptr = GlobalLock(windows::Win32::Foundation::HGLOBAL(handle.0))
-                as *const u16;
-            let text = if ptr.is_null() {
-                None
-            } else {
-                let mut len = 0;
-                while *ptr.add(len) != 0 {
-                    len += 1;
-                }
-                let slice = std::slice::from_raw_parts(ptr, len);
-                Some(String::from_utf16_lossy(slice))
-            };
-            let _ = GlobalUnlock(windows::Win32::Foundation::HGLOBAL(handle.0));
-            text
+            let mut len = 0;
+            while *ptr.add(len) != 0 {
+                len += 1;
+            }
+            let slice = std::slice::from_raw_parts(ptr, len);
+            Some(String::from_utf16_lossy(slice))
         };
+        let _ = GlobalUnlock(HGLOBAL(handle.0));
         let _ = CloseClipboard();
         Ok(text)
     }
@@ -52,13 +54,9 @@ pub fn set_text(text: &str) -> Result<(), WindowsError> {
         if !ptr.is_null() {
             std::ptr::copy_nonoverlapping(encoded.as_ptr(), ptr, encoded.len());
             let _ = GlobalUnlock(alloc);
-            let _ = SetClipboardData(
-                CF_UNICODETEXT.0,
-                Some(windows::Win32::Foundation::HANDLE(alloc.0)),
-            );
+            let _ = SetClipboardData(CF_UNICODETEXT, Some(HANDLE(alloc.0)));
         }
         let _ = CloseClipboard();
     }
-    let _ = HWND::default();
     Ok(())
 }

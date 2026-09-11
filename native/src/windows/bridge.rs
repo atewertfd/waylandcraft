@@ -617,7 +617,7 @@ fn toplevel_resize_ovr<'local>(
     width: jint,
     height: jint,
 ) -> Result<(), WindowsError> {
-    toplevel_resize(env, class, toplevel_handle, width, height, 0)
+    toplevel_resize(env, class, toplevel_handle, width, height, false)
 }
 
 fn minimize_req<'local>(

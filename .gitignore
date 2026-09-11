@@ -48,3 +48,4 @@ native-libs
 .xwin-manual/
 .xwin-tools/
 xwin.exe
+win-ci.log

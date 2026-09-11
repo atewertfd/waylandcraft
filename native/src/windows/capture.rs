@@ -12,10 +12,10 @@ use windows::Win32::Graphics::Direct3D::{
     D3D_DRIVER_TYPE_HARDWARE, D3D_DRIVER_TYPE_WARP,
 };
 use windows::Win32::Graphics::Direct3D11::{
-    D3D11_BIND_FLAG, D3D11_CPU_ACCESS_READ, D3D11_CREATE_DEVICE_BGRA_SUPPORT,
-    D3D11_MAP_READ, D3D11_MAPPED_SUBRESOURCE, D3D11_RESOURCE_MISC_FLAG,
-    D3D11_SDK_VERSION, D3D11_TEXTURE2D_DESC, D3D11_USAGE_STAGING,
-    D3D11CreateDevice, ID3D11Device, ID3D11DeviceContext, ID3D11Texture2D,
+    D3D11_CPU_ACCESS_READ, D3D11_CREATE_DEVICE_BGRA_SUPPORT, D3D11_MAP_READ,
+    D3D11_MAPPED_SUBRESOURCE, D3D11_SDK_VERSION, D3D11_TEXTURE2D_DESC,
+    D3D11_USAGE_STAGING, D3D11CreateDevice, ID3D11Device, ID3D11DeviceContext,
+    ID3D11Resource, ID3D11Texture2D,
 };
 use windows::Win32::Graphics::Dxgi::IDXGIDevice;
 use windows::Win32::System::WinRT::Direct3D11::{
@@ -77,8 +77,8 @@ impl WindowCapture {
         let latest_cb = latest.clone();
         let device_cb = device.clone();
         pool.FrameArrived(&windows::Foundation::TypedEventHandler::new(
-            move |pool: &Option<Direct3D11CaptureFramePool>, _| {
-                if let Some(pool) = pool {
+            move |sender, _args| {
+                if let Some(pool) = sender.as_ref() {
                     if let Ok(frame) = copy_frame(pool, &device_cb) {
                         if let Ok(mut guard) = latest_cb.lock() {
                             *guard = Some(frame);
@@ -184,19 +184,31 @@ fn copy_frame(
     let mut desc = D3D11_TEXTURE2D_DESC::default();
     unsafe { src.GetDesc(&mut desc) };
     desc.Usage = D3D11_USAGE_STAGING;
-    desc.BindFlags = D3D11_BIND_FLAG(0);
-    desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-    desc.MiscFlags = D3D11_RESOURCE_MISC_FLAG(0);
+    desc.BindFlags = 0;
+    desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ.0;
+    desc.MiscFlags = 0;
     desc.MipLevels = 1;
     desc.ArraySize = 1;
-    let staging = unsafe { device.d3d.CreateTexture2D(&desc, None)? };
+    let mut staging = None;
     unsafe {
-        device.context.CopyResource(&staging, &src);
+        device
+            .d3d
+            .CreateTexture2D(&desc, None, Some(&mut staging))?;
+    }
+    let staging = staging.ok_or_else(|| {
+        windows::core::Error::from_hresult(windows::core::HRESULT(
+            0x8000_4005u32 as i32,
+        ))
+    })?;
+    let dst_res: ID3D11Resource = staging.cast()?;
+    let src_res: ID3D11Resource = src.cast()?;
+    unsafe {
+        device.context.CopyResource(&dst_res, &src_res);
     }
     let mut mapped = D3D11_MAPPED_SUBRESOURCE::default();
     unsafe {
         device.context.Map(
-            &staging,
+            &dst_res,
             0,
             D3D11_MAP_READ,
             0,
@@ -214,7 +226,7 @@ fn copy_frame(
             let dst_row = bgra.as_mut_ptr().add(y * width as usize * 4);
             std::ptr::copy_nonoverlapping(src_row, dst_row, width as usize * 4);
         }
-        device.context.Unmap(&staging, 0);
+        device.context.Unmap(&dst_res, 0);
     }
     Ok(CpuFrame {
         width,

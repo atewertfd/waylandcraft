@@ -62,8 +62,8 @@ fn icon_to_png_bytes(icon: HICON) -> Option<Vec<u8>> {
         )
     };
     unsafe {
-        let _ = DeleteObject(info.hbmColor);
-        let _ = DeleteObject(info.hbmMask);
+        let _ = DeleteObject(info.hbmColor.into());
+        let _ = DeleteObject(info.hbmMask.into());
         ReleaseDC(None, hdc);
     }
     if ok == 0 {

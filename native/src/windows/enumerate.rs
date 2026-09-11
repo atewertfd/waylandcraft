@@ -1,6 +1,6 @@
 use crate::windows::error::WindowsError;
 use std::path::PathBuf;
-use windows::Win32::Foundation::{BOOL, HWND, LPARAM, RECT};
+use windows::Win32::Foundation::{HWND, LPARAM, RECT};
 use windows::Win32::Graphics::Dwm::{DWMWA_CLOAKED, DwmGetWindowAttribute};
 use windows::Win32::System::Threading::GetCurrentProcessId;
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -8,6 +8,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     GetWindowLongW, GetWindowTextW, GetWindowThreadProcessId, IsIconic,
     IsWindow, IsWindowVisible, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
 };
+use windows::core::BOOL;
 
 const SKIP_CLASSES: &[&str] = &[
     "Shell_TrayWnd",
@@ -116,7 +117,7 @@ fn inspect_window(
     hwnd: HWND,
     own_pid: u32,
 ) -> Result<Option<EnumeratedWindow>, WindowsError> {
-    if !unsafe { IsWindow(hwnd).as_bool() } {
+    if !unsafe { IsWindow(Some(hwnd)).as_bool() } {
         return Ok(None);
     }
 
@@ -202,14 +203,14 @@ fn is_cloaked(hwnd: HWND) -> bool {
 }
 
 pub fn is_alive(handle: isize) -> bool {
-    unsafe { IsWindow(hwnd_from_raw(handle)).as_bool() }
+    unsafe { IsWindow(Some(hwnd_from_raw(handle))).as_bool() }
 }
 
 /// Inspect a window the user already chose, even if it would fail the picker filter
 /// (for example while minimized).
 pub fn inspect_adopted(handle: isize) -> Option<EnumeratedWindow> {
     let hwnd = hwnd_from_raw(handle);
-    if !unsafe { IsWindow(hwnd).as_bool() } {
+    if !unsafe { IsWindow(Some(hwnd)).as_bool() } {
         return None;
     }
     let mut pid = 0u32;

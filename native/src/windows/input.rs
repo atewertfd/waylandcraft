@@ -1,6 +1,7 @@
 use crate::windows::enumerate::{EnumeratedWindow, hwnd_from_raw};
 use crate::windows::error::WindowsError;
-use windows::Win32::Foundation::{HWND, LPARAM, POINT, WPARAM};
+use windows::Win32::Foundation::{LPARAM, POINT, WPARAM};
+use windows::Win32::Graphics::Gdi::{ClientToScreen, ScreenToClient};
 use windows::Win32::Security::{
     GetTokenInformation, TOKEN_ELEVATION, TOKEN_QUERY, TokenElevation,
 };
@@ -12,17 +13,19 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     GetAsyncKeyState, MAPVK_VSC_TO_VK, MapVirtualKeyW, ToUnicode, VIRTUAL_KEY,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    ClientToScreen, GetForegroundWindow, MK_LBUTTON, MK_MBUTTON, MK_RBUTTON,
-    PostMessageW, ScreenToClient, SendNotifyMessageW, WHEEL_DELTA, WM_CHAR,
-    WM_KEYDOWN, WM_KEYUP, WM_LBUTTONDBLCLK, WM_LBUTTONDOWN, WM_LBUTTONUP,
-    WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_RBUTTONDOWN,
-    WM_RBUTTONUP,
+    GetForegroundWindow, PostMessageW, SendNotifyMessageW, WHEEL_DELTA,
+    WM_CHAR, WM_KEYDOWN, WM_KEYUP, WM_LBUTTONDBLCLK, WM_LBUTTONDOWN,
+    WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL,
+    WM_RBUTTONDOWN, WM_RBUTTONUP,
 };
 use windows::core::Owned;
 
 pub const BTN_LEFT: i32 = 0x110;
 pub const BTN_RIGHT: i32 = 0x111;
 pub const BTN_MIDDLE: i32 = 0x112;
+const MK_LBUTTON: usize = 0x0001;
+const MK_RBUTTON: usize = 0x0002;
+const MK_MBUTTON: usize = 0x0010;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MouseButton {
@@ -122,24 +125,20 @@ pub fn send_mouse_button(
     let lp = client_to_lparam(cx, cy);
     let (msg, wp) = match (kind, pressed, double_click) {
         (MouseButton::Left, true, true) => {
-            (WM_LBUTTONDBLCLK, WPARAM(MK_LBUTTON.0 as usize))
+            (WM_LBUTTONDBLCLK, WPARAM(MK_LBUTTON))
         }
         (MouseButton::Left, true, false) => {
-            (WM_LBUTTONDOWN, WPARAM(MK_LBUTTON.0 as usize))
+            (WM_LBUTTONDOWN, WPARAM(MK_LBUTTON))
         }
         (MouseButton::Left, false, _) => (WM_LBUTTONUP, WPARAM(0)),
-        (MouseButton::Right, true, _) => {
-            (WM_RBUTTONDOWN, WPARAM(MK_RBUTTON.0 as usize))
-        }
+        (MouseButton::Right, true, _) => (WM_RBUTTONDOWN, WPARAM(MK_RBUTTON)),
         (MouseButton::Right, false, _) => (WM_RBUTTONUP, WPARAM(0)),
-        (MouseButton::Middle, true, _) => {
-            (WM_MBUTTONDOWN, WPARAM(MK_MBUTTON.0 as usize))
-        }
+        (MouseButton::Middle, true, _) => (WM_MBUTTONDOWN, WPARAM(MK_MBUTTON)),
         (MouseButton::Middle, false, _) => (WM_MBUTTONUP, WPARAM(0)),
     };
     unsafe {
-        if !PostMessageW(Some(hwnd), msg, wp, lp).as_bool() {
-            let _ = SendNotifyMessageW(hwnd, msg, wp, lp);
+        if PostMessageW(Some(hwnd), msg, wp, lp).is_err() {
+            let _ = SendNotifyMessageW(Some(hwnd), msg, wp, lp);
         }
     }
     Ok(1)
