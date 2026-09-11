@@ -101,4 +101,55 @@ Windows applications are **not** captured until the user launches or selects the
 
 ## Tests
 
-See the pull/request notes or the session deliverable for the exact automated and runtime tests that were run. Do not assume in-game capture works until those runtime items are listed as executed.
+### Automated (GitHub Actions)
+
+CI run: https://github.com/atewertfd/waylandcraft/actions/runs/34563587614
+
+| Job | Result |
+| --- | --- |
+| Linux `cargo fmt --check` | pass |
+| Linux `cargo test` | pass |
+| Linux `cargo clippy` | pass |
+| Linux `cargo build` + `./gradlew check build` | pass; JAR contains `libwaylandcraft.so` |
+| Windows `cargo fmt --check` | pass |
+| Windows `cargo test` | pass |
+| Windows `cargo clippy` | pass |
+| Windows `cargo build` + `gradlew.bat build` | pass; JAR contains `waylandcraft-windows-msvc-x86_64.dll` and `waylandcraft.dll` |
+
+`fabric.mod.json` accepts `minecraft ~26.2`. Use the newest `windows-26.2-alpha.*` prerelease JAR; alpha.1 crashed at mixin apply (`renderArmWithItem` was renamed in 26.2).
+
+### Native runtime (Windows 11 x86-64, no Minecraft)
+
+`tools/windows-jni-smoke` loaded the packaged DLL and exercised the JNI backend on this machine.
+
+| Check | Result |
+| --- | --- |
+| `System.load` of `waylandcraft.dll` | pass |
+| `init` / Windows Graphics Capture + D3D11 device | pass (`socket=windows-graphics-capture`) |
+| Start Menu + running-window launcher entries | pass (216 shortcuts, ~10 running HWNDs) |
+| Adopt Untitled Notepad (`HWND 0x90dee`) | pass |
+| Continuous WGC frame, BGRA CPU buffer, nonzero pixels | pass (`1074x1018`, 9/9 sampled pixels nonzero) |
+| Post mouse left-click + A/B/C key messages | pass (messages posted; on-screen glyph change not pixel-asserted) |
+| `toplevelResize` request | pass (request issued) |
+| Second simultaneous capture (Opera / Chromium) | pass (`2560x1392`, live pixels, YouTube title) |
+| Unadopt + `shutdown` without native panic | pass |
+
+Calculator was started but not always enumerated (packaged/UWP timing). File Explorer HWNDs were enumerated. A later dump also listed both Notepad windows.
+
+### Minecraft 26.2 Fabric `runClient` (this machine)
+
+| Check | Result |
+| --- | --- |
+| Minecraft 26.2 + Fabric Loader 0.19.5 + this mod starts | pass (after 26.2 mixin retargets) |
+| Default OpenGL renderer, not Vulkan fallback | pass (`Using graphics backend OpenGL`) |
+| Old "unsupported platform" fallback | not entered |
+| Native DLL extracted from the classpath/JAR | pass (`/waylandcraft-windows-msvc-x86_64.dll`) |
+| `Windows Graphics Capture backend ready` | pass |
+| Join singleplayer + chat line about the Windows backend | pass |
+| Pause-menu WaylandCraft button (`PauseScreenMixin`) | pass (visible on a captured pause screen) |
+| Window manager (`B`) / launcher (`V`) screens | not visually confirmed (pause menu consumed keys) |
+| Live in-world window entity, click/type/resize/grab/HUD pin | not tested in-world |
+| Calculator inside Minecraft | not tested |
+| Clean Minecraft process exit | not asserted (dev client left running) |
+
+Iris/Sodium were not installed in the development client.
