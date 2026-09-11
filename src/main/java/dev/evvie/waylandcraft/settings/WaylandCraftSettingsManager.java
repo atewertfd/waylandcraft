@@ -11,6 +11,7 @@ import com.google.gson.Gson;
 
 import dev.evvie.waylandcraft.WaylandCraft;
 import dev.evvie.waylandcraft.WaylandCraftCommon;
+import dev.evvie.waylandcraft.platform.PlatformSupport;
 import net.minecraft.client.Minecraft;
 
 public class WaylandCraftSettingsManager {
@@ -85,6 +86,10 @@ public class WaylandCraftSettingsManager {
 	}
 	
 	private String tryReadKeymapFromSystem() {
+		if(PlatformSupport.isWindows()) {
+			WaylandCraftCommon.LOGGER.info("Skipping xkbcli on Windows; keyboard forwarding uses Win32 virtual keys");
+			return null;
+		}
 		// Try running xkbcli to get keymap
 		String keymap = null;
 		try {

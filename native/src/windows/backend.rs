@@ -60,7 +60,7 @@ impl WindowsBackend {
         let device = capture::create_shared_device()?;
         let apps = apps::load_start_menu_apps(&icon_dir).unwrap_or_default();
         eprintln!(
-            "waylandcraft-windows: native=2.1.0-windows.26.2-alpha.1 backend=windows-graphics-capture pixel=BGRA32 apps={}",
+            "waylandcraft-windows: native=2.1.0-windows.26.2-alpha.2 backend=windows-graphics-capture pixel=BGRA32 apps={}",
             apps.len()
         );
         Ok(Self {
@@ -438,11 +438,6 @@ impl WindowsBackend {
             .unwrap_or_default()
             .into_iter()
             .map(|info| {
-                let icon_path = icons::extract_window_icon_png(
-                    enumerate::hwnd_from_raw(info.hwnd),
-                    &self.icon_dir,
-                )
-                .map(|p| p.to_string_lossy().into_owned());
                 DesktopApp {
                     app_id: format!("hwnd:{}", info.hwnd),
                     name: format!("{} (open)", info.title),
@@ -456,7 +451,7 @@ impl WindowsBackend {
                     keywords: vec![info.title, info.class_name],
                     categories: vec!["Running".into()],
                     visible: true,
-                    icon_path,
+                    icon_path: None,
                 }
             })
             .collect()

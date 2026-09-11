@@ -48,7 +48,7 @@ public final class PlatformSupport {
 	}
 
 	public static String nativeLibraryVersion() {
-		return "2.1.0-windows.26.2-alpha.1";
+		return "2.1.0-windows.26.2-alpha.2";
 	}
 
 	/**

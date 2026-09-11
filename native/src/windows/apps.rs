@@ -1,5 +1,4 @@
 use crate::windows::error::WindowsError;
-use crate::windows::icons;
 use std::fs;
 use std::os::windows::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
@@ -105,7 +104,7 @@ fn collect_shortcuts(
 fn shortcut_to_app(
     root: &Path,
     path: &Path,
-    icon_dir: &Path,
+    _icon_dir: &Path,
 ) -> Option<DesktopApp> {
     let (target, args, comment) = resolve_shortcut(path).ok()?;
     if target.is_empty() {
@@ -118,8 +117,6 @@ fn shortcut_to_app(
         format!("\"{}\" {}", target, args)
     };
     let category = category_from_path(root, path);
-    let icon_path = icons::extract_file_icon_png(Path::new(&target), icon_dir)
-        .map(|p| p.to_string_lossy().into_owned());
     Some(DesktopApp {
         app_id: path.to_string_lossy().into_owned(),
         name,
@@ -130,7 +127,7 @@ fn shortcut_to_app(
         keywords: vec![target],
         categories: vec![category],
         visible: true,
-        icon_path,
+        icon_path: None,
     })
 }
 

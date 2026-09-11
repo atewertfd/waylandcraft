@@ -7,28 +7,32 @@ use windows::Win32::Graphics::Gdi::{
     BI_RGB, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, DeleteObject, GetDC,
     GetDIBits, ReleaseDC,
 };
+use windows::Win32::Foundation::{LPARAM, WPARAM};
 use windows::Win32::UI::WindowsAndMessaging::HICON;
 use windows::Win32::UI::WindowsAndMessaging::{
-    DestroyIcon, GetIconInfo, ICON_BIG, ICONINFO, SendMessageW, WM_GETICON,
+    DestroyIcon, GetIconInfo, ICON_BIG, ICONINFO, SMTO_ABORTIFHUNG,
+    SendMessageTimeoutW, WM_GETICON,
 };
 
 pub fn extract_window_icon_png(hwnd: HWND, dest_dir: &Path) -> Option<PathBuf> {
-    let icon = unsafe {
-        SendMessageW(
+    let mut result = 0usize;
+    let sent = unsafe {
+        SendMessageTimeoutW(
             hwnd,
             WM_GETICON,
-            Some(windows::Win32::Foundation::WPARAM(ICON_BIG as usize)),
-            None,
+            WPARAM(ICON_BIG as usize),
+            LPARAM(0),
+            SMTO_ABORTIFHUNG,
+            50,
+            Some(&mut result),
         )
     };
-    if icon.0 == 0 {
+    if sent.0 == 0 || result == 0 {
         return None;
     }
-    let hicon = HICON(icon.0 as *mut core::ffi::c_void);
+    // WM_GETICON returns a handle owned by the window; do not destroy it.
+    let hicon = HICON(result as *mut core::ffi::c_void);
     let png = icon_to_png_bytes(hicon)?;
-    unsafe {
-        let _ = DestroyIcon(hicon);
-    }
     write_png_file(dest_dir, &format!("hwnd-{:x}", hwnd.0 as usize), &png).ok()
 }
 

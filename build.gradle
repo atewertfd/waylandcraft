@@ -40,11 +40,32 @@ dependencies {
 	compileOnly "maven.modrinth:iris:${project.iris_version}"
 }
 
+def nativeWindowsDll = [
+	file("native/target/release/waylandcraft.dll"),
+	file("native/target/debug/waylandcraft.dll"),
+	file("native-libs/waylandcraft-windows-msvc-x86_64.dll")
+].find { it.exists() }
+def nativeLinuxSo = file("native/target/debug/libwaylandcraft.so")
+
 processResources {
 	inputs.property "version", project.version
 
 	filesMatching("fabric.mod.json") {
 		expand "version": inputs.properties.version
+	}
+
+	// runClient uses processResources, not the jar spec. Copy natives onto the
+	// classpath so NativeLibraries can extract them in the development client.
+	if(nativeWindowsDll != null) {
+		from(nativeWindowsDll) {
+			rename { "waylandcraft-windows-msvc-x86_64.dll" }
+		}
+		from(nativeWindowsDll) {
+			rename { "waylandcraft.dll" }
+		}
+	}
+	if(nativeLinuxSo.exists()) {
+		from(nativeLinuxSo)
 	}
 }
 
@@ -189,6 +210,7 @@ loom {
 			environmentVariable("LD_LIBRARY_PATH", "../native/target/debug/")
 			environmentVariable("__GL_THREADED_OPTIMIZATIONS", "0")
 			environmentVariable("RUST_BACKTRACE", "1")
+			vmArg("-Djava.library.path=${file("native/target/debug").absolutePath}")
 		}
 	}
 }

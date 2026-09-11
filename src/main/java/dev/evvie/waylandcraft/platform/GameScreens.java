@@ -1,5 +1,6 @@
 package dev.evvie.waylandcraft.platform;
 
+import dev.evvie.waylandcraft.WaylandCraftCommon;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 
@@ -12,6 +13,7 @@ public final class GameScreens {
 	}
 
 	public static void set(Minecraft minecraft, Screen screen) {
+		WaylandCraftCommon.LOGGER.info("Opening screen {}", screen == null ? "null" : screen.getClass().getSimpleName());
 		minecraft.gui.setScreen(screen);
 	}
 

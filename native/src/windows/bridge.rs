@@ -428,7 +428,7 @@ fn init<'local>(
     let ptr = Box::into_raw(Box::new(backend));
     remember_ptr(ptr);
     eprintln!(
-        "waylandcraft-windows: initialized backend ptr={ptr:p} library=2.1.0-windows.26.2-alpha.1"
+        "waylandcraft-windows: initialized backend ptr={ptr:p} library=2.1.0-windows.26.2-alpha.2"
     );
     Ok(ptr as usize as jlong)
 }
